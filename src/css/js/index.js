@@ -1,54 +1,69 @@
-const inputSearch = document.getElementById("input-search");
-const btnSearch = document.getElementById("btn-search");
-const profileResults = document.querySelector(".profile-results");
+import { githubApi } from './githubApi.js';
+import { profileView } from './profileView.js';
 
-const BASE_URL = "https://api.github.com";
+/**
+ * Classe principal da aplicação
+ * Responsável por orquestrar a busca e exibição de perfis do GitHub
+ */
+class App {
+    constructor() {
+        this.inputSearch = document.getElementById("input-search");
+        this.btnSearch = document.getElementById("btn-search");
+        this.profileResults = document.querySelector(".profile-results");
 
-btnSearch.addEventListener("click", async () => {
-    const userName = inputSearch.value;
-    if (userName) {
-        // Mostrar loading
-        profileResults.innerHTML = `
-            <div class="loading">
-                <div class="loading-spinner"></div>
-                <p class="loading-text">Carregando...</p>
-            </div>
-        `;
+        this.init();
+    }
 
-
-        try {
-            // Aqui você pode adicionar a lógica para buscar o perfil do GitHub usando a API
-            const response = await fetch(`${BASE_URL}/users/${userName}`)
-
-            if (!response.ok) {
-                alert("Usuário não encontrado. Por favor, verifique o nome de usuário e tente novamente.");
-                profileResults.innerHTML = "";
-                return;
+    /**
+     * Inicializa os event listeners da aplicação
+     */
+    init() {
+        this.btnSearch.addEventListener("click", () => this.handleSearch());
+        this.inputSearch.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                this.handleSearch();
             }
+        });
+    }
 
-            const userData = await response.json();
-            console.log(userData);
+    /**
+     * Gerencia a busca do perfil do usuário
+     */
+    async handleSearch() {
+        const userName = this.inputSearch.value.trim();
 
-            profileResults.innerHTML = `
-        <div class="profile-card">
-            <img src="${userData.avatar_url}" alt="Avatar de ${userData.name}" class="profile-avatar">
-            <div class="profile-info">
-            <h2>${userData.name}</h2>
-            <p>${userData.bio || "Não possui bio cadastrada 😢"}</p>
-        </div>
-        </div>
-    `;
-
-        } catch (error) {
-            console.error("Erro ao buscar o perfil do GitHub:", error);
-            alert("Ocorreu um erro ao buscar o perfil do GitHub. Por favor, tente novamente mais tarde.");
-            profileResults.innerHTML = "";
+        if (!userName) {
+            profileView.showError("Por favor, digite um nome de usuário do GitHub.");
+            profileView.clear(this.profileResults);
+            return;
         }
 
-    } else {
-        alert("Por favor, digite um nome de usuário do GitHub.");
-        profileResults.innerHTML = "";
+        try {
+            // Exibir loading
+            profileView.renderLoading(this.profileResults);
+
+            // Buscar dados do usuário
+            const userData = await githubApi.getUser(userName);
+            console.log(userData);
+
+            // Renderizar perfil
+            profileView.renderProfile(this.profileResults, userData);
+        } catch (error) {
+            console.error("Erro ao buscar o perfil do GitHub:", error);
+
+            const errorMessage = error.message === "Usuário não encontrado"
+                ? "Usuário não encontrado. Por favor, verifique o nome de usuário e tente novamente."
+                : "Ocorreu um erro ao buscar o perfil do GitHub. Por favor, tente novamente mais tarde.";
+
+            profileView.showError(errorMessage);
+            profileView.clear(this.profileResults);
+        }
     }
+}
+
+// Inicializa a aplicação quando o DOM estiver pronto
+document.addEventListener("DOMContentLoaded", () => {
+    new App();
 });
 
 
